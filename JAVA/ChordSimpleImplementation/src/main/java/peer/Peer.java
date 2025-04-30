@@ -72,7 +72,8 @@ public class Peer {
 			this.creaAnillo();
 		}
 		else {
-			String uri = "http://" + result.ipEntrada + ":8080/nodo";
+			String uri = "http://" + result.ipEntrada + ":8080/ChordSimpleImplementation/nodo";
+			System.out.println(uri);
 			NodoInfo nuevoSucesor = client.target(uri)
 			             .path("find_sucesor")
 			             .queryParam("id", nodo.id)
@@ -85,11 +86,13 @@ public class Peer {
 	
 	public void creaAnillo() {
 		this.sucesores.add(this.nodo);
+		System.out.println(this.sucesores.size());
 	}
 	@GET
 	@Path("find_sucesor")
 	@Produces(MediaType.APPLICATION_JSON)
 	public NodoInfo findSucesor(@QueryParam("id") Integer id) {
+		System.out.println("HOLA");
 		if (id < this.nodo.id && id >= sucesores.get(0).id) {
 			return sucesores.get(0);
 		}
