@@ -8,6 +8,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import jakarta.inject.Singleton;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -19,7 +20,7 @@ import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.core.MediaType;
 
 
-
+@Singleton
 @Path("nodo")
 public class Peer {
 	
@@ -86,17 +87,17 @@ public class Peer {
 	
 	public void creaAnillo() {
 		this.sucesores.add(this.nodo);
-		System.out.println(this.sucesores.size());
 	}
+	
 	@GET
 	@Path("find_sucesor")
 	@Produces(MediaType.APPLICATION_JSON)
 	public NodoInfo findSucesor(@QueryParam("id") Integer id) {
-		System.out.println("HOLA");
-		if (id < this.nodo.id && id >= sucesores.get(0).id) {
+		// TODO despues del 255 va el 0
+		if (id > this.nodo.id && id <= sucesores.get(0).id) {
 			return sucesores.get(0);
 		}
-		String uri = "http://" + sucesores.get(0).ip + ":8080/nodo";
+		String uri = "http://" + sucesores.get(0).ip + ":8080/ChordSimpleImplementation/nodo";
 		return client.target(uri)
 		             .path("find_sucesor")
 		             .queryParam("id", id)
