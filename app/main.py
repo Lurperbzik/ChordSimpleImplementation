@@ -8,7 +8,7 @@ recursos = {
   "uno": "uno",
   "dos": "dos",
 }
-tamano_anillo = 8
+tamano_anillo = 6
 
 app = FastAPI()
 @app.get("/Anillo")
@@ -22,8 +22,8 @@ def anillo():
 def crea_anillo():
   result = requests.post(
       "http://localhost:8080/ChordSimpleImplementation/nodo/join",
-      data="http://localhost:8000",  # texto plano
-      headers={"Content-Type": "text/plain"}  # explícitamente text/plain
+      data=f"http://{ip_address}:8000",  # texto plano
+      headers={"Contestatus_codent-Type": "text/plain"}  # explícitamente text/plain
   )
 
   return {

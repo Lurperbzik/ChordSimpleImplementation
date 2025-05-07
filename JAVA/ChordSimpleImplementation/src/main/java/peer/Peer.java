@@ -61,6 +61,7 @@ public class Peer {
 	@Path("join")
 	@Consumes(MediaType.TEXT_PLAIN)
 	public void join(String url) {
+		System.out.println(url);
 		AnilloInfo result = client.target(url)
 				.path("Anillo")
 				.request(MediaType.APPLICATION_JSON)
@@ -94,9 +95,16 @@ public class Peer {
 	@Produces(MediaType.APPLICATION_JSON)
 	public NodoInfo findSucesor(@QueryParam("id") Integer id) {
 		// TODO despues del 255 va el 0
-		if (id > this.nodo.id && id <= sucesores.get(0).id) {
+		if (id > this.nodo.id && id <= this.sucesores.get(0).id) {
 			return sucesores.get(0);
 		}
+		
+		if(this.sucesores.get(0).id < this.nodo.id) {
+			if (id > this.nodo.id && id <= this.sucesores.get(0).id + Math.pow(2, tamanoAnillo)) {
+				return sucesores.get(0);
+			}
+		}
+		
 		String uri = "http://" + sucesores.get(0).ip + ":8080/ChordSimpleImplementation/nodo";
 		return client.target(uri)
 		             .path("find_sucesor")
