@@ -3,8 +3,10 @@ package peer;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import jakarta.inject.Singleton;
 import jakarta.ws.rs.Consumes;
@@ -15,6 +17,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.Entity;
 import jakarta.ws.rs.core.MediaType;
 
 
@@ -32,23 +35,40 @@ public class Peer {
 	
 	NodoInfo nodo = new NodoInfo();
 	NodoInfo predecesor = new NodoInfo();
-	ArrayList<NodoInfo> sucesores = new ArrayList<NodoInfo>();
+	NodoInfo sucesor = new NodoInfo();
 	HashMap <Integer, String> recursos;
 	private Client client = ClientBuilder.newClient();
+	//private final ScheduledExecutorService scheduler;
 
+	
 	
 	public Peer() throws UnknownHostException {
 		String[] data = InetAddress.getLocalHost().toString().split("/");
 		this.nodo.ip = data[data.length - 1];
 		System.out.println("IP " + this.nodo.ip);
+		
+		/*
+        scheduler = Executors.newScheduledThreadPool(1);
+	    
+        Runnable tarea = () -> {
+	    	if (this.sucesor.id != -1) {
+		    	this.estabilizar();
+		    	this.check_predecesor();
+		    	System.out.println("Hola");
+	    	}
+	    };
+        scheduler.scheduleAtFixedRate(tarea, 0, 1, TimeUnit.SECONDS);
+		 */
 	}
+	
 	
 	@GET 
 	@Produces(MediaType.TEXT_PLAIN)
-	@Path("hola")
-	public String hola() {
-		return "Hello";
+	@Path("status")
+	public String getSucesor() {
+		return "Id: " + this.nodo.id + " Ip: " + this.nodo.ip +  " Id Sucesor: " + this.sucesor.id +  " Id Predecesor: " + this.predecesor.id;
 	}
+	
 	@POST
 	@Path("join")
 	@Consumes(MediaType.TEXT_PLAIN)
@@ -59,6 +79,7 @@ public class Peer {
 				.request(MediaType.APPLICATION_JSON)
 	            .get(AnilloInfo.class);
 		
+		System.out.println("Hola");
 		tamanoAnillo = result.tamanoAnillo;
 		this.nodo.tamanoAnillo = tamanoAnillo;
 		
@@ -75,12 +96,32 @@ public class Peer {
 			             .queryParam("id", nodo.id)
 			             .request(MediaType.APPLICATION_JSON)
 			             .get(NodoInfo.class);
-			sucesores.add(nuevoSucesor);
+			sucesor = nuevoSucesor;
 		}
 	}
 	
 	public void creaAnillo() {
-		this.sucesores.add(this.nodo);
+		sucesor = this.nodo;
+	}
+	
+
+	@GET
+	@Path("check_sucesor")
+	public void check_predecesor() {
+		if (predecesor.id == -1) {
+			return;
+		}
+		
+		String uri = "http://" + predecesor.ip + ":8080/ChordSimpleImplementation/nodo";
+		try {
+			client.target(uri)
+	            .path("status")
+	            .request(MediaType.TEXT_PLAIN)
+	            .get(String.class);
+		} catch (Exception e) {
+			this.predecesor.id = -1;
+		}
+		
 	}
 	
 	@GET
@@ -89,26 +130,104 @@ public class Peer {
 	public NodoInfo findSucesor(@QueryParam("id") Integer id) {
 		System.out.println("Find sucesor");
 		
-		if (this.nodo.id == this.sucesores.get(0).id) {
-			return sucesores.get(0);
+		if (this.nodo.id == this.sucesor.id) {
+			return sucesor;
 		}
-		if (id > this.nodo.id && id <= this.sucesores.get(0).id) {
-			return sucesores.get(0);
+		if (id > this.nodo.id && id <= this.sucesor.id) {
+			return sucesor;
 		}
 		
-		if(this.sucesores.get(0).id < this.nodo.id) {
-			if (id > this.nodo.id && id <= this.sucesores.get(0).id + Math.pow(2, tamanoAnillo)) {
-				return sucesores.get(0);
+		if(this.sucesor.id < this.nodo.id) {
+			if (id > this.nodo.id && id <= this.sucesor.id + Math.pow(2, tamanoAnillo)) {
+				return sucesor;
 			}
 		}
 		
-		String uri = "http://" + sucesores.get(0).ip + ":8080/ChordSimpleImplementation/nodo";
+		String uri = "http://" + sucesor.ip + ":8080/ChordSimpleImplementation/nodo";
 		return client.target(uri)
 		             .path("find_sucesor")
 		             .queryParam("id", id)
 		             .request(MediaType.APPLICATION_JSON)
 		             .get(NodoInfo.class);
 	}
+	
+	@GET
+	@Path("predecesor")
+	@Produces(MediaType.APPLICATION_JSON)
+	public NodoInfo predecesor() {
+		return this.predecesor;
+	}
+
+	@GET
+	@Path("estabilizar")	
+	public void estabilizar() {
+		System.out.println("Estabilizando...");
+		NodoInfo posibleSucesor;
+		String uri = "http://" + this.sucesor.ip + ":8080/ChordSimpleImplementation/nodo";
+
+		posibleSucesor = client.target(uri)
+	             .path("predecesor")
+	             .request(MediaType.APPLICATION_JSON)
+	             .get(NodoInfo.class);
+		
+		
+		int posibleSucesorTemp = posibleSucesor.id;
+		int sucesorIdTemp = this.sucesor.id; 
+		
+
+		
+		if (posibleSucesor.id != -1) {
+			
+			if(nodo.id > posibleSucesorTemp) {
+				posibleSucesorTemp += (int) Math.pow(2, tamanoAnillo);
+			}
+			
+			if(sucesorIdTemp < this.nodo.id) {
+				sucesorIdTemp += (int) Math.pow(2, tamanoAnillo);
+			}
+		
+			if(this.nodo.id > posibleSucesorTemp && posibleSucesorTemp < sucesorIdTemp) {
+				System.out.println("Cambiando sucesor a: " + posibleSucesor.id);
+				this.sucesor = posibleSucesor;
+			}
+			if(this.sucesor.id == this.nodo.id) {
+				this.sucesor = posibleSucesor;
+			} 
+		}
+	    uri = "http://" + this.sucesor.ip + ":8080/ChordSimpleImplementation/nodo";
+		client.target(uri)
+	             .path("notificar")
+	             .request(MediaType.APPLICATION_JSON)
+	             .post(Entity.entity(this.nodo, MediaType.APPLICATION_JSON));
+		return;
+	}
+	
+	
+	@POST
+	@Path("notificar")
+	@Consumes(MediaType.APPLICATION_JSON)
+	public void notificar(NodoInfo nodo) {
+		System.out.println("Notificando");
+		int idTemp = nodo.id; 
+		int sucesorIdTemp = this.sucesor.id; 
+		 
+		if (this.predecesor.id == -1) {
+			this.predecesor = nodo;
+			return;
+		}
+		if(nodo.id < this.predecesor.id) {
+			idTemp += (int) Math.pow(2, tamanoAnillo);
+		}
+		if(sucesorIdTemp < this.predecesor.id) {
+			sucesorIdTemp += (int) Math.pow(2, tamanoAnillo);
+		}
+	
+		if(idTemp > this.predecesor.id && idTemp < sucesorIdTemp) {
+			this.predecesor = nodo;
+		}
+		return;
+	}
+	
 
 	
 }

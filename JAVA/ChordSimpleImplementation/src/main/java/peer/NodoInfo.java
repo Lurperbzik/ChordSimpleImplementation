@@ -1,7 +1,6 @@
 package peer;
 
 import java.math.BigInteger;
-
 import org.apache.commons.codec.digest.DigestUtils;
 
 public class NodoInfo {
@@ -10,7 +9,7 @@ public class NodoInfo {
 	public int tamanoAnillo;
 	
 	public NodoInfo() {
-		// pa que no se queje jakarta
+		this.id = -1;
 	}
 	
 	public void hashIP() {

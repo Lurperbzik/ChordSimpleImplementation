@@ -43,3 +43,29 @@ def join(ip: str):
     "status_code": result.status_code,
     "text": result.text
   }
+
+
+@app.get("/estabilizar")
+def estabilizar(ip: str):
+  url = f"http://{ip}:8080/ChordSimpleImplementation/nodo/estabilizar"
+  result = requests.get(url)
+  return "Done"
+
+@app.get("/status")
+def sucesores():
+  urls = [
+    "http://192.168.1.134:8080/ChordSimpleImplementation/nodo/status",
+    "http://192.168.1.130:8080/ChordSimpleImplementation/nodo/status",
+    "http://192.168.1.133:8080/ChordSimpleImplementation/nodo/status",
+  ]
+
+  response = []
+  for url in urls:
+    try:
+      result = requests.get(url)
+      if result.status_code == 200:
+        response.append(result.text)
+    except requests.exceptions.RequestException as e:
+      print(f"Error al conectar con {url}: {e}")
+  
+  return response
