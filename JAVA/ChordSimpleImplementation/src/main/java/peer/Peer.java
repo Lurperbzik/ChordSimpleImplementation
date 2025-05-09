@@ -1,10 +1,8 @@
 package peer;
 
-import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-import org.apache.commons.codec.digest.DigestUtils;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -31,19 +29,7 @@ public class Peer {
 
 	int tamanoAnillo;
 	int numSucesores = 2;
-	public class NodoInfo {
-		public int id;
-		public String ip;	
-		
-		public void hashIP() {
-			byte[] hash = DigestUtils.sha1(this.ip);
-			BigInteger bigInt = new BigInteger(1, hash);
-			BigInteger modulo = BigInteger.ONE.shiftLeft(tamanoAnillo);  
-	        BigInteger result = bigInt.mod(modulo);
-
-	        this.id =  (int) result.longValue(); 
-		}
-	}
+	
 	NodoInfo nodo = new NodoInfo();
 	NodoInfo predecesor = new NodoInfo();
 	ArrayList<NodoInfo> sucesores = new ArrayList<NodoInfo>();
@@ -57,6 +43,12 @@ public class Peer {
 		System.out.println("IP " + this.nodo.ip);
 	}
 	
+	@GET 
+	@Produces(MediaType.TEXT_PLAIN)
+	@Path("hola")
+	public String hola() {
+		return "Hello";
+	}
 	@POST
 	@Path("join")
 	@Consumes(MediaType.TEXT_PLAIN)
@@ -68,8 +60,10 @@ public class Peer {
 	            .get(AnilloInfo.class);
 		
 		tamanoAnillo = result.tamanoAnillo;
+		this.nodo.tamanoAnillo = tamanoAnillo;
 		
 		this.nodo.hashIP();
+		System.out.println(this.nodo.id);
 		if (this.nodo.ip.equals(result.ipEntrada)) {
 			this.creaAnillo();
 		}
@@ -83,7 +77,6 @@ public class Peer {
 			             .get(NodoInfo.class);
 			sucesores.add(nuevoSucesor);
 		}
-		
 	}
 	
 	public void creaAnillo() {
@@ -94,7 +87,11 @@ public class Peer {
 	@Path("find_sucesor")
 	@Produces(MediaType.APPLICATION_JSON)
 	public NodoInfo findSucesor(@QueryParam("id") Integer id) {
-		// TODO despues del 255 va el 0
+		System.out.println("Find sucesor");
+		
+		if (this.nodo.id == this.sucesores.get(0).id) {
+			return sucesores.get(0);
+		}
 		if (id > this.nodo.id && id <= this.sucesores.get(0).id) {
 			return sucesores.get(0);
 		}

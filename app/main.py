@@ -36,7 +36,7 @@ def join(ip: str):
   url = f"http://{ip}:8080/ChordSimpleImplementation/nodo/join"
   result = requests.post(
       url,
-      data="http://localhost:8000",  # texto plano
+      data=f"http://{ip_address}:8000",  # texto plano
       headers={"Content-Type": "text/plain"}  # explícitamente text/plain
   )
   return {
