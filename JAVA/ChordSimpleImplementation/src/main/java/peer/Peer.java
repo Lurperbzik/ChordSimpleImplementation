@@ -33,6 +33,7 @@ public class Peer {
 	int tamanoAnillo;
 	int numSucesores = 2;
 	
+	private String uriNodoEntrada;
 	NodoInfo nodo = new NodoInfo();
 	NodoInfo predecesor = new NodoInfo();
 	NodoInfo sucesor = new NodoInfo();
@@ -73,7 +74,7 @@ public class Peer {
 	@Path("join")
 	@Consumes(MediaType.TEXT_PLAIN)
 	public void join(String url) {
-		System.out.println(url);
+		this.uriNodoEntrada = url;
 		AnilloInfo result = client.target(url)
 				.path("Anillo")
 				.request(MediaType.APPLICATION_JSON)
@@ -165,34 +166,35 @@ public class Peer {
 		NodoInfo posibleSucesor;
 		String uri = "http://" + this.sucesor.ip + ":8080/ChordSimpleImplementation/nodo";
 
-		posibleSucesor = client.target(uri)
-	             .path("predecesor")
-	             .request(MediaType.APPLICATION_JSON)
-	             .get(NodoInfo.class);
-		
-		
-		int posibleSucesorTemp = posibleSucesor.id;
-		int sucesorIdTemp = this.sucesor.id; 
+		try {
+			posibleSucesor = client.target(uri)
+		             .path("predecesor")
+		             .request(MediaType.APPLICATION_JSON)
+		             .get(NodoInfo.class);
+		} catch(Exception exception) {
+			this.sucesor.id = -1;
+			this.predecesor.id = -1;
+			this.join(uriNodoEntrada);
+			return;
+		}
 		
 
-		
-		if (posibleSucesor.id != -1) {
+		if (posibleSucesor.id != -1 && posibleSucesor.id != nodo.id) {
 			
-			if(nodo.id > posibleSucesorTemp) {
-				posibleSucesorTemp += (int) Math.pow(2, tamanoAnillo);
-			}
-			
-			if(sucesorIdTemp < this.nodo.id) {
-				sucesorIdTemp += (int) Math.pow(2, tamanoAnillo);
-			}
-		
-			if(this.nodo.id > posibleSucesorTemp && posibleSucesorTemp < sucesorIdTemp) {
+			if(posibleSucesor.id > nodo.id  && posibleSucesor.id < this.sucesor.id) {
+				this.sucesor = posibleSucesor;
 				System.out.println("Cambiando sucesor a: " + posibleSucesor.id);
-				this.sucesor = posibleSucesor;
 			}
-			if(this.sucesor.id == this.nodo.id) {
-				this.sucesor = posibleSucesor;
-			} 
+			else if(this.sucesor.id <= nodo.id) {
+				if(posibleSucesor.id > nodo.id) {
+					this.sucesor = posibleSucesor;
+					System.out.println("Cambiando sucesor a: " + posibleSucesor.id);
+				}
+				else if (posibleSucesor.id < this.sucesor.id) {
+					this.sucesor = posibleSucesor;
+					System.out.println("Cambiando sucesor a: " + posibleSucesor.id);
+				}
+			}
 		}
 	    uri = "http://" + this.sucesor.ip + ":8080/ChordSimpleImplementation/nodo";
 		client.target(uri)
@@ -206,28 +208,32 @@ public class Peer {
 	@POST
 	@Path("notificar")
 	@Consumes(MediaType.APPLICATION_JSON)
-	public void notificar(NodoInfo nodo) {
+	public void notificar(NodoInfo posiblePred) {
 		System.out.println("Notificando");
-		int idTemp = nodo.id; 
-		int sucesorIdTemp = this.sucesor.id; 
+		
+		System.out.println("id: " + posiblePred.id);
 		 
 		if (this.predecesor.id == -1) {
-			this.predecesor = nodo;
+			this.predecesor = posiblePred;
 			return;
 		}
-		if(nodo.id < this.predecesor.id) {
-			idTemp += (int) Math.pow(2, tamanoAnillo);
+		
+		if(posiblePred.id > this.predecesor.id && posiblePred.id < this.nodo.id) {
+			this.predecesor = posiblePred;
 		}
-		if(sucesorIdTemp < this.predecesor.id) {
-			sucesorIdTemp += (int) Math.pow(2, tamanoAnillo);
-		}
-	
-		if(idTemp > this.predecesor.id && idTemp < sucesorIdTemp) {
-			this.predecesor = nodo;
+		else if(this.predecesor.id >= nodo.id) {
+			if(posiblePred.id > nodo.id) {
+				this.predecesor = posiblePred;
+				System.out.println("Cambiando predecesor a: " + posiblePred.id);
+
+			}
+			else if (posiblePred.id < this.predecesor.id) {
+				this.predecesor = posiblePred;
+				System.out.println("Cambiando predecesor a: " + posiblePred.id);
+
+			}
 		}
 		return;
 	}
-	
-
 	
 }
