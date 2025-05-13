@@ -20,7 +20,6 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.client.Entity;
-import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.MediaType;
 
 
@@ -64,7 +63,7 @@ public class Peer {
         BigInteger result = bigInt.mod(modulo);
 
         Integer idRec =  (int) result.longValue();
-        
+        System.out.println(idRec);
         NodoInfo nodoEncargado = this.findSucesor(idRec);
         if (nodoEncargado.id == this.nodo.id) {
         	// subimos el recurso
@@ -211,8 +210,14 @@ public class Peer {
 			return sucesor;
 		}
 		
-		if(this.sucesor.id < this.nodo.id) {
-			if (id > this.nodo.id && id <= this.sucesor.id + Math.pow(2, tamanoAnillo)) {
+		
+		
+		if( this.nodo.id > this.sucesor.id) {
+			// id id > n 
+			if(id > this.nodo.id) {
+				return sucesor;
+			}
+			else if(id < this.sucesor.id){
 				return sucesor;
 			}
 		}

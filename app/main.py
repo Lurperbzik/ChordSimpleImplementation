@@ -1,7 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 import socket
 import requests
 from pydantic import BaseModel
+
 
 app = FastAPI()
 
@@ -16,19 +17,58 @@ recursos_disponibles = []
 ip_address = socket.gethostbyname(socket.gethostname())
 tamano_anillo = 6
 
-""" 
-ENDPOINTS DE RECURSOS
+routerRecursos = APIRouter(tags=["Recursos"])
+routerNodos = APIRouter(tags=["Nodos"])
+routerAnillo = APIRouter(tags=["Anillo"])
+
 """
-@app.get("/recursos")
+ENDPOINTS DE RECURSOS SI USAR
+"""
+@routerRecursos.post("/alta")
+def alta(nombreRecurso: str):
+  url = "http://localhost:8080/ChordSimpleImplementation/nodo/alta"
+  result = requests.post(
+      url,
+      json=nombreRecurso, 
+      headers={"Content-Type": "application/json"}  
+  )
+  return result.text
+
+@routerRecursos.delete("/baja")
+def baja(nombreRecurso: str):
+  url = "http://localhost:8080/ChordSimpleImplementation/nodo/baja"
+  result = requests.delete(
+      url,
+      json=nombreRecurso,
+      headers={"Content-Type": "application/json"}  )  
+
+  return result.text
+
+@routerRecursos.get("/descarga")
+def descarga(idRec: int):
+  url = "http://localhost:8080/ChordSimpleImplementation/nodo/descarga"
+  result = requests.get(
+      url,
+      params={"idRec": idRec}
+  )
+  return result.json()
+
+
+
+@routerRecursos.get("/recursos")
 def get_recursos():
   return recursos_disponibles
 
-@app.post("/recursos")
+""" 
+ENDPOINTS DE RECURSOS NO USAR -> LOS USAN LOS NODOS
+"""
+
+@routerNodos.post("/recursos")
 def add_recurso(recurso: Resources):
   recursos_disponibles.append(recurso)
   return "ok"
 
-@app.delete("/recursos/{recurso_id}")
+@routerNodos.delete("/recursos/{recurso_id}")
 def delete_recurso(recurso_id: int):
   for recurso in recursos_disponibles:
     if recurso.id == recurso_id:
@@ -38,19 +78,19 @@ def delete_recurso(recurso_id: int):
   return "no se ha encontrado el recurso"
 
 
-@app.get("/Anillo")
+@routerAnillo.get("/Anillo")
 def anillo():
   return {
     "ipEntrada": ip_address,
     "tamanoAnillo": tamano_anillo
   }
 
-@app.post("/creaAnillo")
+@routerAnillo.post("/creaAnillo")
 def crea_anillo():
   result = requests.post(
       "http://localhost:8080/ChordSimpleImplementation/nodo/join",
       data=f"http://{ip_address}:8000",  # texto plano
-      headers={"Contestatus_codent-Type": "text/plain"}  # explícitamente text/plain
+      headers={"Content-Type": "text/plain"}  # explícitamente text/plain
   )
 
   return {
@@ -58,7 +98,7 @@ def crea_anillo():
     "text": result.text
   }
 
-@app.post("/join")
+@routerAnillo.post("/join")
 def join(ip: str):
   url = f"http://{ip}:8080/ChordSimpleImplementation/nodo/join"
   result = requests.post(
@@ -72,13 +112,13 @@ def join(ip: str):
   }
 
 
-@app.get("/estabilizar")
+@routerAnillo.get("/estabilizar")
 def estabilizar(ip: str):
   url = f"http://{ip}:8080/ChordSimpleImplementation/nodo/estabilizar"
   result = requests.get(url)
   return "Done"
 
-@app.get("/status")
+@routerAnillo.get("/status")
 def sucesores():
   urls = [
     "http://192.168.1.134:8080/ChordSimpleImplementation/nodo/status",
@@ -96,3 +136,7 @@ def sucesores():
       print(f"Error al conectar con {url}: {e}")
   
   return response
+
+app.include_router(routerRecursos)
+app.include_router(routerNodos)
+app.include_router(routerAnillo)
