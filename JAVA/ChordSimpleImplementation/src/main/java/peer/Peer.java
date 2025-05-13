@@ -8,6 +8,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -39,7 +41,7 @@ public class Peer {
 	NodoInfo sucesor = new NodoInfo();
 	HashMap <Integer, String> recursos;
 	private Client client = ClientBuilder.newClient();
-	//private final ScheduledExecutorService scheduler;
+	private ScheduledExecutorService scheduler;
 
 	
 	
@@ -47,21 +49,37 @@ public class Peer {
 		String[] data = InetAddress.getLocalHost().toString().split("/");
 		this.nodo.ip = data[data.length - 1];
 		System.out.println("IP " + this.nodo.ip);
-		
-		/*
-        scheduler = Executors.newScheduledThreadPool(1);
-	    
-        Runnable tarea = () -> {
-	    	if (this.sucesor.id != -1) {
-		    	this.estabilizar();
-		    	this.check_predecesor();
-		    	System.out.println("Hola");
-	    	}
-	    };
-        scheduler.scheduleAtFixedRate(tarea, 0, 1, TimeUnit.SECONDS);
-		 */
+		 
 	}
-	
+
+    @PostConstruct
+    public void iniciar() {
+        try {
+            String[] data = InetAddress.getLocalHost().toString().split("/");
+            this.nodo.ip = data[data.length - 1];
+            System.out.println("IP " + this.nodo.ip);
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+            return; 
+        }
+
+        scheduler = Executors.newSingleThreadScheduledExecutor();
+
+        scheduler.scheduleAtFixedRate(() -> {
+            if (this.sucesor.id != -1) {
+                this.estabilizar();
+                this.check_predecesor();
+                System.out.println("Hola");
+            }
+        }, 0, 1, TimeUnit.SECONDS);
+    }
+
+    @PreDestroy
+    public void detener() {
+        if (scheduler != null && !scheduler.isShutdown()) {
+            scheduler.shutdown();
+        }
+    }
 	
 	@GET 
 	@Produces(MediaType.TEXT_PLAIN)
