@@ -1,17 +1,17 @@
 package peer;
 
+import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 import java.util.HashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.Map.Entry;
 
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
+import org.apache.commons.codec.digest.DigestUtils;
+
 import jakarta.inject.Singleton;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -20,6 +20,7 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.MediaType;
 
 
@@ -36,50 +37,104 @@ public class Peer {
 	int numSucesores = 2;
 	
 	private String uriNodoEntrada;
-	NodoInfo nodo = new NodoInfo();
+	public NodoInfo nodo = new NodoInfo();
 	NodoInfo predecesor = new NodoInfo();
 	NodoInfo sucesor = new NodoInfo();
-	HashMap <Integer, String> recursos;
+	HashMap <Integer, String> recursos = new HashMap<Integer, String>();
 	private Client client = ClientBuilder.newClient();
-	private ScheduledExecutorService scheduler;
-
+	private Child child;
 	
 	
 	public Peer() throws UnknownHostException {
 		String[] data = InetAddress.getLocalHost().toString().split("/");
 		this.nodo.ip = data[data.length - 1];
-		System.out.println("IP " + this.nodo.ip);
-		 
+		this.child = new Child(this.nodo);
+		this.child.start();
 	}
 
-    @PostConstruct
-    public void iniciar() {
-        try {
-            String[] data = InetAddress.getLocalHost().toString().split("/");
-            this.nodo.ip = data[data.length - 1];
-            System.out.println("IP " + this.nodo.ip);
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-            return; 
+  
+	@POST 
+	@Path("alta")
+	@Consumes(MediaType.APPLICATION_JSON)
+	public void alta(String nombreRecurso) {
+		// hashear el recurso
+		byte[] hash = DigestUtils.sha1(nombreRecurso);
+		BigInteger bigInt = new BigInteger(1, hash);
+		BigInteger modulo = BigInteger.ONE.shiftLeft(tamanoAnillo);  
+        BigInteger result = bigInt.mod(modulo);
+
+        Integer idRec =  (int) result.longValue();
+        
+        NodoInfo nodoEncargado = this.findSucesor(idRec);
+        if (nodoEncargado.id == this.nodo.id) {
+        	// subimos el recurso
+        	recursos.put(idRec, nombreRecurso);
+        	
+        	HashMap<String, String> datosEnvio = new HashMap<String, String>();
+        	datosEnvio.put("id", idRec.toString());
+        	datosEnvio.put("name", nombreRecurso);
+        	// mandar mensaje al servidor central
+			client.target(uriNodoEntrada)
+		             .path("recursos")
+		             .request(MediaType.APPLICATION_JSON)
+		             .post(Entity.entity(datosEnvio, MediaType.APPLICATION_JSON));
+        	
+        } else {
+        	// llamamos subida de otro
+        	String uri = "http://" + nodoEncargado.ip + ":8080/ChordSimpleImplementation/nodo";
+			client.target(uri)
+	             .path("subida")
+	             .request(MediaType.APPLICATION_JSON)
+	             .post(Entity.entity(nombreRecurso, MediaType.APPLICATION_JSON));
         }
+        
+	}
+	
+	@DELETE
+	@Path("baja")
+	@Consumes(MediaType.APPLICATION_JSON)
+	public String baja(String nombreRecurso) {
+		for (Entry<Integer, String> entry : recursos.entrySet()) {
+			if (entry.getValue().equals(nombreRecurso)) {
+				Integer id = entry.getKey();
 
-        scheduler = Executors.newSingleThreadScheduledExecutor();
+				String result = client.target(uriNodoEntrada)
+					.path("recursos")
+					.queryParam("id", id.toString())
+					.request(MediaType.APPLICATION_JSON)
+					.delete(String.class);
 
-        scheduler.scheduleAtFixedRate(() -> {
-            if (this.sucesor.id != -1) {
-                this.estabilizar();
-                this.check_predecesor();
-                System.out.println("Hola");
-            }
-        }, 0, 1, TimeUnit.SECONDS);
-    }
+				return result;
+			}
+		}
+		return "Recurso no disponible";
+	}
+	
+	@GET 
+	@Path("descarga")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Recurso descarga(@QueryParam("idRec") int idRec) {
+	    NodoInfo nodoEncargado = this.findSucesor(idRec);
 
-    @PreDestroy
-    public void detener() {
-        if (scheduler != null && !scheduler.isShutdown()) {
-            scheduler.shutdown();
-        }
-    }
+	    if (nodoEncargado.id == this.nodo.id) {
+	        for (Entry<Integer, String> entry : recursos.entrySet()) {
+	            if (entry.getKey().equals(idRec)) {
+	                return new Recurso(entry.getKey(), entry.getValue());
+	            }
+	        }
+	        return null;
+	    } else {
+	        // Consultamos al nodo encargado
+	        String uri = "http://" + nodoEncargado.ip + ":8080/ChordSimpleImplementation/nodo";
+	        Recurso recurso = client.target(uri)
+	            .path("descarga")
+	            .queryParam("idRec", idRec)
+	            .request(MediaType.APPLICATION_JSON)
+	            .get(Recurso.class);
+	        
+	        return recurso;
+	    }
+	}
 	
 	@GET 
 	@Produces(MediaType.TEXT_PLAIN)
@@ -89,8 +144,8 @@ public class Peer {
 	}
 	
 	@POST
-	@Path("join")
 	@Consumes(MediaType.TEXT_PLAIN)
+	@Path("join")
 	public void join(String url) {
 		this.uriNodoEntrada = url;
 		AnilloInfo result = client.target(url)
@@ -125,7 +180,7 @@ public class Peer {
 	
 
 	@GET
-	@Path("check_sucesor")
+	@Path("check_predecesor")
 	public void check_predecesor() {
 		if (predecesor.id == -1) {
 			return;

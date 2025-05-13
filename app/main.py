@@ -1,16 +1,43 @@
 from fastapi import FastAPI
 import socket
 import requests
+from pydantic import BaseModel
+
+app = FastAPI()
+
+
+class Resources(BaseModel):
+  id: int 
+  name: str
+  
+recursos_disponibles = []
 
 
 ip_address = socket.gethostbyname(socket.gethostname())
-recursos = {
-  "uno": "uno",
-  "dos": "dos",
-}
 tamano_anillo = 6
 
-app = FastAPI()
+""" 
+ENDPOINTS DE RECURSOS
+"""
+@app.get("/recursos")
+def get_recursos():
+  return recursos_disponibles
+
+@app.post("/recursos")
+def add_recurso(recurso: Resources):
+  recursos_disponibles.append(recurso)
+  return "ok"
+
+@app.delete("/recursos/{recurso_id}")
+def delete_recurso(recurso_id: int):
+  for recurso in recursos_disponibles:
+    if recurso.id == recurso_id:
+      recursos_disponibles.remove(recurso)
+      return "ok"
+  
+  return "no se ha encontrado el recurso"
+
+
 @app.get("/Anillo")
 def anillo():
   return {

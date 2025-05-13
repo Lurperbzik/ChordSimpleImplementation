@@ -20,4 +20,5 @@ public class NodoInfo {
 
         this.id =  (int) result.longValue(); 
 	}
+	
 }
