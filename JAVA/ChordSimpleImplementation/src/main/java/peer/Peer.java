@@ -47,8 +47,8 @@ public class Peer {
 	public Peer() throws UnknownHostException {
 		String[] data = InetAddress.getLocalHost().toString().split("/");
 		this.nodo.ip = data[data.length - 1];
-		//this.child = new Child(this.nodo);
-		//this.child.start();
+		this.child = new Child(this.nodo);
+		this.child.start();
 	}
 
   

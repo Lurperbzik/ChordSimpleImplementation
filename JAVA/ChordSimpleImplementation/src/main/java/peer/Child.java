@@ -4,12 +4,30 @@ import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.client.Entity;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.servlet.ServletContextEvent;
+import jakarta.servlet.ServletContextListener;
+import jakarta.servlet.annotation.WebListener;
 
-public class Child extends Thread{
+
+@WebListener
+public class Child extends Thread implements ServletContextListener{
 	private NodoInfo nodo;
 	private Client client = ClientBuilder.newClient();
 
+	@Override
+    public void contextInitialized(ServletContextEvent sce) {
+        System.out.println("Servidor iniciado. Ejecutando método...");
+        try {
+			this.init();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+    }
 	
+   @Override
+    public void contextDestroyed(ServletContextEvent sce) {
+    }
+
 	public Child(NodoInfo nodo) {
 		this.nodo = nodo;
 	}
