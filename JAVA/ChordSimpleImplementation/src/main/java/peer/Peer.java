@@ -1,9 +1,6 @@
 package peer;
 
 import java.math.BigInteger;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-
 import java.util.HashMap;
 import java.util.Map.Entry;
 
@@ -41,14 +38,10 @@ public class Peer {
 	NodoInfo sucesor = new NodoInfo();
 	HashMap <Integer, String> recursos = new HashMap<Integer, String>();
 	private Client client = ClientBuilder.newClient();
-	private Child child;
 	
 	
-	public Peer() throws UnknownHostException {
-		String[] data = InetAddress.getLocalHost().toString().split("/");
-		this.nodo.ip = data[data.length - 1];
-		this.child = new Child(this.nodo);
-		this.child.start();
+	public Peer() {
+		
 	}
 
   

@@ -1,6 +1,8 @@
 package peer;
 
 import java.math.BigInteger;
+import java.net.InetAddress;
+
 import org.apache.commons.codec.digest.DigestUtils;
 
 public class NodoInfo {
@@ -10,6 +12,13 @@ public class NodoInfo {
 	
 	public NodoInfo() {
 		this.id = -1;
+		String[] data;
+		try {
+			data = InetAddress.getLocalHost().toString().split("/");
+			this.ip = data[data.length - 1];
+		} catch (Exception e) {
+			
+		}
 	}
 	
 	public void hashIP() {

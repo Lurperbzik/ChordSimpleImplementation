@@ -40,8 +40,8 @@ def baja(nombreRecurso: str):
   url = "http://localhost:8080/ChordSimpleImplementation/nodo/baja"
   result = requests.delete(
       url,
-      json=nombreRecurso,
-      headers={"Content-Type": "application/json"}  )  
+      data=nombreRecurso,
+      headers={"Content-Type": "text/plain"}  )  
 
   return result.text
 
@@ -75,8 +75,9 @@ def delete_recurso(recurso_id: int):
     if recurso.id == recurso_id:
       recursos_disponibles.remove(recurso)
       return "ok"
+    
   
-  return "no se ha encontrado el recurso"
+  return "Recurso no encontrado"
 
 
 @routerAnillo.get("/Anillo")
