@@ -12,6 +12,7 @@ import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.client.Client;
@@ -44,18 +45,20 @@ public class Peer {
 		
 	}
 
+	private int hashRecurso(String data) {
+		byte[] hash = DigestUtils.sha1(data);
+		BigInteger bigInt = new BigInteger(1, hash);
+		BigInteger modulo = BigInteger.ONE.shiftLeft(tamanoAnillo);  
+        BigInteger result = bigInt.mod(modulo);
+        return (int)result.longValue();
+	}
   
 	@POST 
 	@Path("alta")
 	@Consumes(MediaType.APPLICATION_JSON)
 	public void alta(String nombreRecurso) {
-		// hashear el recurso
-		byte[] hash = DigestUtils.sha1(nombreRecurso);
-		BigInteger bigInt = new BigInteger(1, hash);
-		BigInteger modulo = BigInteger.ONE.shiftLeft(tamanoAnillo);  
-        BigInteger result = bigInt.mod(modulo);
-
-        Integer idRec =  (int) result.longValue();
+        
+        Integer idRec =  this.hashRecurso(nombreRecurso);
         System.out.println(idRec);
         NodoInfo nodoEncargado = this.findSucesor(idRec);
 
@@ -89,12 +92,10 @@ public class Peer {
 	}
 	
 	@DELETE
-	@Path("baja")
+	@Path("baja/{nombreRecurso}")
 	@Consumes(MediaType.TEXT_PLAIN)
-	public String baja(String nombreRecurso) {
-		System.out.println("ELIMINADO RECURSO");
-		System.out.println(nombreRecurso);
-		System.out.println("Catidad de recursos " + recursos.size());
+	public String baja(@PathParam("nombreRecurso") String nombreRecurso) {
+		
 		for (Entry<Integer, String> entry : recursos.entrySet()) {
 			System.out.println(entry.getValue());
 			if (entry.getValue().equals(nombreRecurso)) {
@@ -108,7 +109,19 @@ public class Peer {
 				return result;
 			}
 		}
-		return "Recurso no disponible";
+		
+		int idRec = this.hashRecurso(nombreRecurso);
+		if (idRec <= this.nodo.id && idRec > this.predecesor.id && this.predecesor.id != -1) {
+			return "Recurso no disponible";
+		}
+		String uri = "http://" + this.sucesor.ip + ":8000/ChordSimpleImplementation/nodo"; 
+			
+		String result = client.target(uri)
+			    .path("baja/" + nombreRecurso)
+			    .request(MediaType.TEXT_PLAIN)
+			    .delete(String.class);
+
+		return result;
 	}
 	
 	@GET 
