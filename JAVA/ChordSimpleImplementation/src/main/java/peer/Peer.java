@@ -148,6 +148,7 @@ public class Peer {
 	@Consumes(MediaType.TEXT_PLAIN)
 	@Path("join")
 	public void join(String url) {
+		System.out.println("JOIN");
 		this.uriNodoEntrada = url;
 		AnilloInfo result = client.target(url)
 				.path("Anillo")

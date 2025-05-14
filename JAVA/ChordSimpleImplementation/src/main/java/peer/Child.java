@@ -23,8 +23,9 @@ public class Child extends Thread implements ServletContextListener{
 	}
 
 	public void run() {
-		
-		while(!init()) {
+		boolean success = init();
+		while(!success) {
+			success = init();
 			System.out.println("NOT JOIN");
 		}
 		while(true) {
@@ -45,23 +46,16 @@ public class Child extends Thread implements ServletContextListener{
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}
-		String uri = "http://" + ipNodoEntrada+ ":8000";
-		try {
-			client.target(uri)
-            .path("creaAnillo")
-            .request(MediaType.TEXT_PLAIN)
-            .post(null);
-		
-		} catch (Exception ex) {
 			return false;
 		}
-		uri = "http://" + nodo.ip + ":8080/ChordSimpleImplementation/nodo";
+		
+		
+		String uri = "http://" + nodo.ip + ":8080/ChordSimpleImplementation/nodo";
 		try {
 		client.target(uri)
              .path("join")
              .request(MediaType.TEXT_PLAIN)
-             .post(Entity.entity("http://" + ipNodoEntrada + ":8000", MediaType.APPLICATION_JSON));
+             .post(Entity.entity("http://" + ipNodoEntrada + ":8000", MediaType.TEXT_PLAIN));
 		
 		} catch (Exception e){
 			return false;
