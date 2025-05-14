@@ -114,7 +114,7 @@ public class Peer {
 		if (idRec <= this.nodo.id && idRec > this.predecesor.id && this.predecesor.id != -1) {
 			return "Recurso no disponible";
 		}
-		String uri = "http://" + this.sucesor.ip + ":8000/ChordSimpleImplementation/nodo"; 
+		String uri = "http://" + this.sucesor.ip + ":8080/ChordSimpleImplementation/nodo"; 
 			
 		String result = client.target(uri)
 			    .path("baja/" + nombreRecurso)

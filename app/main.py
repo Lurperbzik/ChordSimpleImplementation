@@ -37,13 +37,9 @@ def alta(nombreRecurso: str):
 
 @routerRecursos.delete("/baja")
 def baja(nombreRecurso: str):
-  url = "http://localhost:8080/ChordSimpleImplementation/nodo/baja"
-  result = requests.delete(
-      url,
-      data=nombreRecurso,
-      headers={"Content-Type": "text/plain"}  )  
-
-  return result.text
+    url = f"http://localhost:8080/ChordSimpleImplementation/nodo/baja/{nombreRecurso}"
+    response = requests.delete(url)
+    return response.text
 
 @routerRecursos.get("/descarga")
 def descarga(idRec: int):
