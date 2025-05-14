@@ -47,8 +47,8 @@ public class Peer {
 	public Peer() throws UnknownHostException {
 		String[] data = InetAddress.getLocalHost().toString().split("/");
 		this.nodo.ip = data[data.length - 1];
-		this.child = new Child(this.nodo);
-		this.child.start();
+		//this.child = new Child(this.nodo);
+		//this.child.start();
 	}
 
   
@@ -65,9 +65,13 @@ public class Peer {
         Integer idRec =  (int) result.longValue();
         System.out.println(idRec);
         NodoInfo nodoEncargado = this.findSucesor(idRec);
+
+    	System.out.println("Nodo Encargado: "+ nodoEncargado);
         if (nodoEncargado.id == this.nodo.id) {
         	// subimos el recurso
-        	recursos.put(idRec, nombreRecurso);
+        	recursos.put(idRec, nombreRecurso.replace("\"", ""));
+    		System.out.println("Catidad de recursos " + recursos.size());
+
         	
         	HashMap<String, String> datosEnvio = new HashMap<String, String>();
         	datosEnvio.put("id", idRec.toString());
@@ -80,10 +84,11 @@ public class Peer {
 		             .post(Entity.entity(datosEnvio, MediaType.APPLICATION_JSON));
         	
         } else {
+        	System.out.println("Enviando a otro: ");
         	// llamamos subida de otro
         	String uri = "http://" + nodoEncargado.ip + ":8080/ChordSimpleImplementation/nodo";
 			client.target(uri)
-	             .path("subida")
+	             .path("alta")
 	             .request(MediaType.APPLICATION_JSON)
 	             .post(Entity.entity(nombreRecurso, MediaType.APPLICATION_JSON));
         }
@@ -92,16 +97,19 @@ public class Peer {
 	
 	@DELETE
 	@Path("baja")
-	@Consumes(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.TEXT_PLAIN)
 	public String baja(String nombreRecurso) {
+		System.out.println("ELIMINADO RECURSO");
+		System.out.println(nombreRecurso);
+		System.out.println("Catidad de recursos " + recursos.size());
 		for (Entry<Integer, String> entry : recursos.entrySet()) {
+			System.out.println(entry.getValue());
 			if (entry.getValue().equals(nombreRecurso)) {
 				Integer id = entry.getKey();
-
+				System.out.println("Recurso localizado");
 				String result = client.target(uriNodoEntrada)
-					.path("recursos")
-					.queryParam("id", id.toString())
-					.request(MediaType.APPLICATION_JSON)
+					.path("recursos/" + id.toString())
+					.request(MediaType.TEXT_PLAIN)
 					.delete(String.class);
 
 				return result;
@@ -115,7 +123,7 @@ public class Peer {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Recurso descarga(@QueryParam("idRec") int idRec) {
 	    NodoInfo nodoEncargado = this.findSucesor(idRec);
-
+	  
 	    if (nodoEncargado.id == this.nodo.id) {
 	        for (Entry<Integer, String> entry : recursos.entrySet()) {
 	            if (entry.getKey().equals(idRec)) {
