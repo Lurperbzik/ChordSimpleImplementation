@@ -72,6 +72,7 @@ public class Peer {
         	HashMap<String, String> datosEnvio = new HashMap<String, String>();
         	datosEnvio.put("id", idRec.toString());
         	datosEnvio.put("name", nombreRecurso);
+        	datosEnvio.put("hostId", this.nodo.id + "");
         	// mandar mensaje al servidor central
 			client.target(uriNodoEntrada)
 		             .path("recursos")
@@ -118,7 +119,7 @@ public class Peer {
 	    if (nodoEncargado.id == this.nodo.id) {
 	        for (Entry<Integer, String> entry : recursos.entrySet()) {
 	            if (entry.getKey().equals(idRec)) {
-	                return new Recurso(entry.getKey(), entry.getValue());
+	                return new Recurso(entry.getKey(), entry.getValue(), this.nodo.id+"");
 	            }
 	        }
 	        return null;
