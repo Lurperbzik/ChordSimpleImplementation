@@ -10,6 +10,7 @@ app = FastAPI()
 class Resources(BaseModel):
   id: int 
   name: str
+  hostId: str
   
 recursos_disponibles = []
 
