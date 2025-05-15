@@ -6,7 +6,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
-import java.nio.file.Paths;
 import java.util.Base64;
 
 
@@ -56,7 +55,7 @@ public class Recurso {
 		try {
 			f = new FileInputStream(image);
 		} catch (FileNotFoundException e) {
-			e.printStackTrace();
+			return null;
 		}
 		try {
 			imageBytes = f.readAllBytes();

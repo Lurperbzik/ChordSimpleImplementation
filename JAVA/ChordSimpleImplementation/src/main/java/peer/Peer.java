@@ -140,6 +140,7 @@ public class Peer {
 	@Path("descarga")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
 	public byte[] descarga(@QueryParam("nombreRecurso") String nombreRecurso) {
+		System.out.println(nombreRecurso);
         Integer idRec =  this.hashRecurso(nombreRecurso);
 	    NodoInfo nodoEncargado = this.findSucesor(idRec);
 	    
@@ -155,10 +156,10 @@ public class Peer {
 	        String uri = "http://" + nodoEncargado.ip + ":8080/ChordSimpleImplementation/nodo";
 	        byte[] image = client.target(uri)
 	            .path("descarga")
-	            .queryParam("idRec", idRec)
+	            .queryParam("nombreRecurso", nombreRecurso)
 	            .request(MediaType.APPLICATION_OCTET_STREAM)
 	            .get(byte[].class);
-	        
+	        System.out.println(image.length);
 	        return image;
 	    }
 	}
