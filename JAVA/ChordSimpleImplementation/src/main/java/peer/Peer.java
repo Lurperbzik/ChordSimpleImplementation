@@ -20,6 +20,7 @@ import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.client.Entity;
 import jakarta.ws.rs.core.Form;
+import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
@@ -39,8 +40,8 @@ public class Peer {
 	public NodoInfo nodo = new NodoInfo();
 	NodoInfo predecesor = new NodoInfo();
 	NodoInfo sucesor = new NodoInfo();
-	HashMap <Integer, String> recursos = new HashMap<Integer, String>();
 	ArrayList<Recurso> recursosLocales = new ArrayList<Recurso>();
+	ArrayList<Recurso> recursosSucesor = new ArrayList<Recurso>();
 	private Client client = ClientBuilder.newClient();
 	private String ipNodoEntrada;
 	
@@ -56,7 +57,81 @@ public class Peer {
         BigInteger result = bigInt.mod(modulo);
         return (int)result.longValue();
 	}
+	
+	
+	@GET
+	@Path("recursosLocales")
+	@Produces(MediaType.APPLICATION_JSON)
+	public HashMap<String, HashMap<String, String>> getRecursosLocales(){
+		HashMap<String, HashMap<String, String>> recursos = new HashMap<String, HashMap<String, String>>();
+		
+		for (Recurso rec: recursosLocales) {
+			HashMap<String, String> recursoTemp = new HashMap<String, String>();
+			recursoTemp.put("name", rec.name);
+			recursoTemp.put("id", rec.id+"");
+			recursoTemp.put("image", rec.loadFromDisk());
+			recursoTemp.put("hostId", rec.hostId+"");
+			
+			recursos.put(rec.id+"", recursoTemp);
+		}
+		return recursos;
+	}
   
+	@DELETE
+	@Path("deleteFromDisk")
+	public void deleteFromDisk(@QueryParam("nombreRecurso") String nombreRecurso)
+	{
+		this.recursosLocales.removeIf(rec -> rec.name.equals(nombreRecurso));
+	}
+	
+	public void actualizarRecursos(String ip) {
+		String uri = "http://" + ip + ":8080/ChordSimpleImplementation/nodo";
+		Response response = client.target(uri)
+             .path("recursosLocales")
+             .request(MediaType.APPLICATION_JSON)
+             .get();
+		
+		HashMap<String, HashMap<String, String>> recursos = response.readEntity(
+		        new GenericType<HashMap<String, HashMap<String, String>>>() {}
+		);
+		
+		for (String recurso : recursos.keySet()) {
+			HashMap<String, String> atributos = recursos.get(recurso);
+			String name="";
+			String id="";
+			String image="";
+			String hostId="";
+			
+		    for (String clave : atributos.keySet()) {
+		    	switch (clave) {
+			    	case "name": 
+			    		name=clave;
+			    	case "id":
+			    		id=clave;
+			    	case "image":
+			    		image=clave;
+			    	case "hostId":
+			    		hostId=clave;
+		    	}
+		    }
+		    
+		    Integer idHash = Integer.parseInt(id);
+		    Integer idHostHash = Integer.parseInt(hostId);
+		    
+		    
+	    	if((this.nodo.id > idHostHash && idHash > idHostHash && idHash <= this.nodo.id) || idHash <= this.nodo.id) {
+	    		Recurso temp = new Recurso(Integer.parseInt(id), name, this.nodo.id);
+			    temp.saveToDisk(image);
+			    this.recursosLocales.add(temp);
+			    client.target(uri)
+	             .path("deleteFromDisk")
+	             .queryParam("nombreRecurso", name)
+	             .request()
+	             .delete();
+	    	}
+		}
+	}
+	
 	@POST 
 	@Path("alta")
 	@Consumes(MediaType.APPLICATION_JSON)
@@ -190,6 +265,7 @@ public class Peer {
 			             .request(MediaType.APPLICATION_JSON)
 			             .get(NodoInfo.class);
 			sucesor = nuevoSucesor;
+			this.actualizarRecursos(sucesor.ip);
 		}
 	}
 	

@@ -33,7 +33,7 @@ public class Recurso {
 		try {
 			f = new FileInputStream(image);
 		} catch (FileNotFoundException e) {
-			e.printStackTrace();
+			return null;
 		}
 		try {
 			imageBytes = f.readAllBytes();
@@ -76,7 +76,7 @@ public class Recurso {
     public boolean saveToDisk(String base64Image) {
         byte[] imageBytes = Base64.getDecoder().decode(base64Image);
 
-        String path = this.path + "/" + this.name;
+        String path = this.path + "/"  + this.name;
 
         try (OutputStream out = new FileOutputStream(new File(path))) {
             out.write(imageBytes);
