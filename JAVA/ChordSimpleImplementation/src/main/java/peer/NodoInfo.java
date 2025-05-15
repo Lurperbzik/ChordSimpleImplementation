@@ -27,7 +27,6 @@ public class NodoInfo {
 			        InetAddress i = (InetAddress) ee.nextElement();
 			        if (i.getHostAddress().matches("^192\\.168\\..*") || i.getHostAddress().matches("^172\\.20\\..*")) {
 			        	this.ip = i.getHostAddress();
-			        	System.out.println(this.ip);
 			        	return;
 			        }
 			    }

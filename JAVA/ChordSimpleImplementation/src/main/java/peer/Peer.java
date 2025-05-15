@@ -76,11 +76,71 @@ public class Peer {
 		}
 		return recursos;
 	}
+	
+	@POST
+	@Path("eliminarNodo")
+	public void eliminarNodo() {
+		String uri = "http://" + this.sucesor.ip + ":8080/ChordSimpleImplementation/nodo";
+		client.target(uri)
+		    .path("onPredecesorBaja")
+		    .request()
+		    .post(null);
+	}
+	
+	@POST 
+	@Path("onPredecesorBaja")
+	public void onPredecesorBaja(){
+		String uri = "http://" + this.predecesor.ip + ":8080/ChordSimpleImplementation/nodo";
+		Response response = client.target(uri)
+	             .path("recursosLocales")
+	             .request(MediaType.APPLICATION_JSON)
+	             .get();
+		
+		
+		HashMap<String, HashMap<String, String>> recursos = response.readEntity(
+		        new GenericType<HashMap<String, HashMap<String, String>>>() {}
+		);
+		
+		for (String recurso : recursos.keySet()) {
+			HashMap<String, String> atributos = recursos.get(recurso);
+			String name="";
+			String id="";
+			String image="";
+			
+		    for (String clave : atributos.keySet()) {
+		    	switch (clave) {
+			    	case "name": 
+			    		name=atributos.get(clave);
+			    		break;
+			    	case "id":
+			    		id=atributos.get(clave);
+			    		break;
+			    	case "image":
+			    		image=atributos.get(clave);
+			    		break;
+		    	}
+		    }
+		    
+    		Recurso temp = new Recurso(Integer.parseInt(id), name, this.nodo.id);
+		    temp.saveToDisk(image);
+		    this.recursosLocales.add(temp);
+		    client.target(uri)
+             .path("deleteFromDisk")
+             .queryParam("nombreRecurso", name)
+             .request()
+             .delete();
+		}
+	}
   
 	@DELETE
 	@Path("deleteFromDisk")
 	public void deleteFromDisk(@QueryParam("nombreRecurso") String nombreRecurso)
 	{
+		for(Recurso rec: recursosLocales) {
+			if(rec.name.equals(nombreRecurso)) {
+				rec.deleteImage();
+			}
+		}
 		this.recursosLocales.removeIf(rec -> rec.name.equals(nombreRecurso));
 	}
 	
@@ -105,13 +165,17 @@ public class Peer {
 		    for (String clave : atributos.keySet()) {
 		    	switch (clave) {
 			    	case "name": 
-			    		name=clave;
+			    		name=atributos.get(clave);
+			    		break;
 			    	case "id":
-			    		id=clave;
+			    		id=atributos.get(clave);
+			    		break;
 			    	case "image":
-			    		image=clave;
+			    		image=atributos.get(clave);
+			    		break;
 			    	case "hostId":
-			    		hostId=clave;
+			    		hostId=atributos.get(clave);
+			    		break;
 		    	}
 		    }
 		    
@@ -215,7 +279,6 @@ public class Peer {
 	@Path("descarga")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
 	public byte[] descarga(@QueryParam("nombreRecurso") String nombreRecurso) {
-		System.out.println(nombreRecurso);
         Integer idRec =  this.hashRecurso(nombreRecurso);
 	    NodoInfo nodoEncargado = this.findSucesor(idRec);
 	    
@@ -234,7 +297,6 @@ public class Peer {
 	            .queryParam("nombreRecurso", nombreRecurso)
 	            .request(MediaType.APPLICATION_OCTET_STREAM)
 	            .get(byte[].class);
-	        System.out.println(image.length);
 	        return image;
 	    }
 	}
@@ -250,10 +312,8 @@ public class Peer {
 	@Consumes(MediaType.TEXT_PLAIN)
 	@Path("join")
 	public void join(String ipNodoEntrada) {
-		System.out.println("JOIN");
 		this.ipNodoEntrada = ipNodoEntrada;
 		this.nodo.hashIP();
-		System.out.println(this.nodo.id);
 		if (this.nodo.ip.equals(ipNodoEntrada)) {
 			this.creaAnillo();
 		}
@@ -297,7 +357,6 @@ public class Peer {
 	@Path("find_sucesor")
 	@Produces(MediaType.APPLICATION_JSON)
 	public NodoInfo findSucesor(@QueryParam("id") Integer id) {
-		System.out.println("Find sucesor");
 		
 		if (this.nodo.id == this.sucesor.id) {
 			return sucesor;
@@ -335,7 +394,6 @@ public class Peer {
 	@GET
 	@Path("estabilizar")	
 	public void estabilizar() {
-		System.out.println("Estabilizando...");
 		NodoInfo posibleSucesor;
 		String uri = "http://" + this.sucesor.ip + ":8080/ChordSimpleImplementation/nodo";
 
@@ -356,16 +414,13 @@ public class Peer {
 			
 			if(posibleSucesor.id > nodo.id  && posibleSucesor.id < this.sucesor.id) {
 				this.sucesor = posibleSucesor;
-				System.out.println("Cambiando sucesor a: " + posibleSucesor.id);
 			}
 			else if(this.sucesor.id <= nodo.id) {
 				if(posibleSucesor.id > nodo.id) {
 					this.sucesor = posibleSucesor;
-					System.out.println("Cambiando sucesor a: " + posibleSucesor.id);
 				}
 				else if (posibleSucesor.id < this.sucesor.id) {
 					this.sucesor = posibleSucesor;
-					System.out.println("Cambiando sucesor a: " + posibleSucesor.id);
 				}
 			}
 		}
@@ -382,10 +437,7 @@ public class Peer {
 	@Path("notificar")
 	@Consumes(MediaType.APPLICATION_JSON)
 	public void notificar(NodoInfo posiblePred) {
-		System.out.println("Notificando");
-		
-		System.out.println("id: " + posiblePred.id);
-		 
+			 
 		if (this.predecesor.id == -1) {
 			this.predecesor = posiblePred;
 			return;
@@ -397,13 +449,9 @@ public class Peer {
 		else if(this.predecesor.id >= nodo.id) {
 			if(posiblePred.id > nodo.id) {
 				this.predecesor = posiblePred;
-				System.out.println("Cambiando predecesor a: " + posiblePred.id);
-
 			}
 			else if (posiblePred.id < this.predecesor.id) {
 				this.predecesor = posiblePred;
-				System.out.println("Cambiando predecesor a: " + posiblePred.id);
-
 			}
 		}
 		return;

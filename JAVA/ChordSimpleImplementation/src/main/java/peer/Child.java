@@ -19,14 +19,12 @@ public class Child extends Thread implements ServletContextListener{
 	public Child() {
 		nodo = new NodoInfo();
 		this.nodo.hashIP();
-		System.out.println ("Ip del Nodo: " + this.nodo.ip + ", Id del nodo: " + this.nodo.id);
 	}
 
 	public void run() {
 		boolean success = init();
 		while(!success) {
 			success = init();
-			System.out.println("NOT JOIN");
 		}
 		while(true) {
 			

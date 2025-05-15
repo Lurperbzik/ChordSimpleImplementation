@@ -9,7 +9,6 @@ public class Listener implements ServletContextListener{
 
 	@Override
     public void contextInitialized(ServletContextEvent sce) {
-        System.out.println("Servidor iniciado. Ejecutando método...");
         Child child = new Child(); 
         child.start();
     }
