@@ -1,14 +1,15 @@
 package peer;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map.Entry;
 
 import org.apache.commons.codec.digest.DigestUtils;
 
 import jakarta.inject.Singleton;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.FormParam;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -18,7 +19,9 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.Form;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 
 @Singleton
@@ -30,15 +33,16 @@ public class Peer {
 	        public Integer tamanoAnillo;
 	    }
 
-	int tamanoAnillo;
+	int tamanoAnillo = 6;
 	int numSucesores = 2;
 	
-	private String uriNodoEntrada;
 	public NodoInfo nodo = new NodoInfo();
 	NodoInfo predecesor = new NodoInfo();
 	NodoInfo sucesor = new NodoInfo();
 	HashMap <Integer, String> recursos = new HashMap<Integer, String>();
+	ArrayList<Recurso> recursosLocales = new ArrayList<Recurso>();
 	private Client client = ClientBuilder.newClient();
+	private String ipNodoEntrada;
 	
 	
 	public Peer() {
@@ -56,37 +60,66 @@ public class Peer {
 	@POST 
 	@Path("alta")
 	@Consumes(MediaType.APPLICATION_JSON)
-	public void alta(String nombreRecurso) {
-        
+	public String alta(String nombreRecurso) {
+        /*
+         * Recibe el nombre de una IMAGEN
+         * El host que recibe el nombre debe tener la imagen en local
+         * Si la tine dos opciones: 
+         * 	- Le toca exponer ese recurso
+         *  - Comparte ese recurso con el nodo indicado y lo elimina de su host
+         * 
+         * Si NO la tiene devuleve ERROR
+         * 
+         * */
+		
         Integer idRec =  this.hashRecurso(nombreRecurso);
-        System.out.println(idRec);
-        NodoInfo nodoEncargado = this.findSucesor(idRec);
 
-    	System.out.println("Nodo Encargado: "+ nodoEncargado);
+		// Comprobamos que tiene esa imagen en local
+		Recurso existe = new Recurso(idRec, nombreRecurso, this.nodo.id);
+		String imageBase64 = existe.loadFromDisk();
+		
+		if (imageBase64 == null) {
+			return "Recurso no disponible en este host";
+		}
+		
+        NodoInfo nodoEncargado = this.findSucesor(idRec);
+        
         if (nodoEncargado.id == this.nodo.id) {
         	// subimos el recurso
-        	recursos.put(idRec, nombreRecurso.replace("\"", ""));
-    		System.out.println("Catidad de recursos " + recursos.size());
-
-        	
-        	HashMap<String, String> datosEnvio = new HashMap<String, String>();
-        	datosEnvio.put("id", idRec.toString());
-        	datosEnvio.put("name", nombreRecurso);
-        	datosEnvio.put("hostId", this.nodo.id + "");
-        	// mandar mensaje al servidor central
-			client.target(uriNodoEntrada)
-		             .path("recursos")
-		             .request(MediaType.APPLICATION_JSON)
-		             .post(Entity.entity(datosEnvio, MediaType.APPLICATION_JSON));
-        	
+        	recursosLocales.add(existe);
+			return "Recurso dado de alta en nodo con ip: " + this.nodo.ip;
         } else {
-        	System.out.println("Enviando a otro: ");
-        	// llamamos subida de otro
-        	String uri = "http://" + nodoEncargado.ip + ":8080/ChordSimpleImplementation/nodo";
-			client.target(uri)
+        	
+        	// Eliminamos la imagen de forma local
+        	existe.deleteImage();
+        	
+        	// Transferimos la imagen al otro host
+        	String uri =  "http://" + nodoEncargado.ip + ":8080/ChordSimpleImplementation/nodo";
+        	
+        	Form form = new Form();
+        	form.param("name", nombreRecurso);
+        	form.param("image", imageBase64);
+        	form.param("imageId", idRec.toString());
+        	
+        	Response response = client.target(uri)
+        		.path("saveImage")
+        		.request(MediaType.TEXT_PLAIN)
+        		.post(Entity.entity(form, MediaType.APPLICATION_FORM_URLENCODED));
+        	
+        	String resultText = response.readEntity(String.class);
+            boolean success = Boolean.parseBoolean(resultText.trim());
+            response.close();
+            
+            if(!success) {
+            	return "Error al transferir archivo a host con IP: " + nodoEncargado.ip;
+            }
+            
+        	uri = "http://" + nodoEncargado.ip + ":8080/ChordSimpleImplementation/nodo";
+			response = client.target(uri)
 	             .path("alta")
 	             .request(MediaType.APPLICATION_JSON)
 	             .post(Entity.entity(nombreRecurso, MediaType.APPLICATION_JSON));
+			return response.readEntity(String.class);
         }
         
 	}
@@ -95,58 +128,38 @@ public class Peer {
 	@Path("baja/{nombreRecurso}")
 	@Consumes(MediaType.TEXT_PLAIN)
 	public String baja(@PathParam("nombreRecurso") String nombreRecurso) {
-		
-		for (Entry<Integer, String> entry : recursos.entrySet()) {
-			System.out.println(entry.getValue());
-			if (entry.getValue().equals(nombreRecurso)) {
-				Integer id = entry.getKey();
-				System.out.println("Recurso localizado");
-				String result = client.target(uriNodoEntrada)
-					.path("recursos/" + id.toString())
-					.request(MediaType.TEXT_PLAIN)
-					.delete(String.class);
 
-				return result;
-			}
+		boolean removed = recursosLocales.removeIf((rec -> rec.name.equals(nombreRecurso)));
+		if(!removed) {
+			return "Recurso no disponible en host con IP: " + this.nodo.ip;
 		}
-		
-		int idRec = this.hashRecurso(nombreRecurso);
-		if (idRec <= this.nodo.id && idRec > this.predecesor.id && this.predecesor.id != -1) {
-			return "Recurso no disponible";
-		}
-		String uri = "http://" + this.sucesor.ip + ":8080/ChordSimpleImplementation/nodo"; 
-			
-		String result = client.target(uri)
-			    .path("baja/" + nombreRecurso)
-			    .request(MediaType.TEXT_PLAIN)
-			    .delete(String.class);
-
-		return result;
+		return "Recurso eliminado en host con IP: " + this.nodo.ip;
 	}
 	
 	@GET 
 	@Path("descarga")
-	@Produces(MediaType.APPLICATION_JSON)
-	public Recurso descarga(@QueryParam("idRec") int idRec) {
+	@Produces(MediaType.APPLICATION_OCTET_STREAM)
+	public byte[] descarga(@QueryParam("nombreRecurso") String nombreRecurso) {
+        Integer idRec =  this.hashRecurso(nombreRecurso);
 	    NodoInfo nodoEncargado = this.findSucesor(idRec);
-	  
+	    
 	    if (nodoEncargado.id == this.nodo.id) {
-	        for (Entry<Integer, String> entry : recursos.entrySet()) {
-	            if (entry.getKey().equals(idRec)) {
-	                return new Recurso(entry.getKey(), entry.getValue(), this.nodo.id+"");
-	            }
+	        for (Recurso rec: recursosLocales) {
+	        	if(rec.name.equals(nombreRecurso)) {
+	        		return rec.loadBytesFromDisk();
+	        	}
 	        }
 	        return null;
 	    } else {
 	        // Consultamos al nodo encargado
 	        String uri = "http://" + nodoEncargado.ip + ":8080/ChordSimpleImplementation/nodo";
-	        Recurso recurso = client.target(uri)
+	        byte[] image = client.target(uri)
 	            .path("descarga")
 	            .queryParam("idRec", idRec)
-	            .request(MediaType.APPLICATION_JSON)
-	            .get(Recurso.class);
+	            .request(MediaType.APPLICATION_OCTET_STREAM)
+	            .get(byte[].class);
 	        
-	        return recurso;
+	        return image;
 	    }
 	}
 	
@@ -160,26 +173,16 @@ public class Peer {
 	@POST
 	@Consumes(MediaType.TEXT_PLAIN)
 	@Path("join")
-	public void join(String url) {
+	public void join(String ipNodoEntrada) {
 		System.out.println("JOIN");
-		this.uriNodoEntrada = url;
-		AnilloInfo result = client.target(url)
-				.path("Anillo")
-				.request(MediaType.APPLICATION_JSON)
-	            .get(AnilloInfo.class);
-		
-		System.out.println("Hola");
-		tamanoAnillo = result.tamanoAnillo;
-		this.nodo.tamanoAnillo = tamanoAnillo;
-		
+		this.ipNodoEntrada = ipNodoEntrada;
 		this.nodo.hashIP();
 		System.out.println(this.nodo.id);
-		if (this.nodo.ip.equals(result.ipEntrada)) {
+		if (this.nodo.ip.equals(ipNodoEntrada)) {
 			this.creaAnillo();
 		}
 		else {
-			String uri = "http://" + result.ipEntrada + ":8080/ChordSimpleImplementation/nodo";
-			System.out.println(uri);
+			String uri = "http://" + ipNodoEntrada + ":8080/ChordSimpleImplementation/nodo";
 			NodoInfo nuevoSucesor = client.target(uri)
 			             .path("find_sucesor")
 			             .queryParam("id", nodo.id)
@@ -226,10 +229,9 @@ public class Peer {
 			return sucesor;
 		}
 		
-		
-		
+	
 		if( this.nodo.id > this.sucesor.id) {
-			// id id > n 
+		
 			if(id > this.nodo.id) {
 				return sucesor;
 			}
@@ -268,7 +270,7 @@ public class Peer {
 		} catch(Exception exception) {
 			this.sucesor.id = -1;
 			this.predecesor.id = -1;
-			this.join(uriNodoEntrada);
+			this.join(ipNodoEntrada);
 			return;
 		}
 		
@@ -328,6 +330,25 @@ public class Peer {
 			}
 		}
 		return;
+	}
+	
+	@GET
+	@Path("getImage")
+	public String getImage(@QueryParam("name") String name) {
+		for (Recurso rec: recursosLocales) {
+			if(rec.name.equals(name)) {
+				return rec.loadFromDisk();
+			}
+		}
+		return null;
+	}
+	
+	@POST 
+	@Path("saveImage")
+	@Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+	public boolean saveImage(@FormParam("name") String name, @FormParam("image") String imageBase64, @FormParam("imageId") int imageId) {
+		Recurso rec = new Recurso(imageId, name, this.nodo.id);
+		return rec.saveToDisk(imageBase64);
 	}
 	
 }

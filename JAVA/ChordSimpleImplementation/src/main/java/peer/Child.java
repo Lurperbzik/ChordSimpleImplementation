@@ -14,7 +14,7 @@ import jakarta.servlet.annotation.WebListener;
 public class Child extends Thread implements ServletContextListener{
 	private NodoInfo nodo;
 	private Client client = ClientBuilder.newClient();
-	private String ipNodoEntrada = "192.168.1.134";
+	private String ipNodoEntrada = "192.168.1.41";
 	
 	public Child() {
 		nodo = new NodoInfo();
@@ -55,7 +55,7 @@ public class Child extends Thread implements ServletContextListener{
 		client.target(uri)
              .path("join")
              .request(MediaType.TEXT_PLAIN)
-             .post(Entity.entity("http://" + ipNodoEntrada + ":8000", MediaType.TEXT_PLAIN));
+             .post(Entity.entity(ipNodoEntrada, MediaType.TEXT_PLAIN));
 		
 		} catch (Exception e){
 			return false;
