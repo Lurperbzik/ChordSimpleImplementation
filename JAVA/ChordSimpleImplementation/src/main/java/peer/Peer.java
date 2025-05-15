@@ -87,6 +87,12 @@ public class Peer {
 		    .post(null);
 	}
 	
+	@POST
+	@Path("shutdown")
+	public void shutdown() {
+		System.exit(0);
+	}
+	
 	@POST 
 	@Path("onPredecesorBaja")
 	public void onPredecesorBaja(){
@@ -130,6 +136,12 @@ public class Peer {
              .request()
              .delete();
 		}
+		
+		uri = "http://" + this.predecesor.ip + ":8080/ChordSimpleImplementation/nodo";
+		client.target(uri)
+	             .path("shutdown")
+	             .request()
+	             .post(null);
 	}
   
 	@DELETE
