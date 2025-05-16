@@ -35,13 +35,11 @@ public class Peer {
 	    }
 
 	int tamanoAnillo = 6;
-	int numSucesores = 2;
-	
+
 	public NodoInfo nodo = new NodoInfo();
 	NodoInfo predecesor = new NodoInfo();
 	NodoInfo sucesor = new NodoInfo();
 	ArrayList<Recurso> recursosLocales = new ArrayList<Recurso>();
-	ArrayList<Recurso> recursosSucesor = new ArrayList<Recurso>();
 	private Client client = ClientBuilder.newClient();
 	private String ipNodoEntrada;
 	
