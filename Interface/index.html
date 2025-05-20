@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Chord Simple Implementation Interface</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h2>Chord Simple Implementation Interface</h2>
+    <div id="drop-zone">
+      Arrastra una imagen aquí o <input type="file" id="fileInput" />
+    </div>
+    <button onclick="getRecursos()">Ver Recursos</button>
+    <button onclick="verStatus()">Ver Estado</button>
+    <br />
+    <input
+      type="text"
+      id="nombreRecurso"
+      placeholder="Nombre recurso para baja/descarga"
+    />
+    <button onclick="baja()">Baja</button>
+    <button onclick="descarga()">Descargar</button>
+    <button onclick="eliminarNodo()">Eliminar Nodo</button>
+
+    <div id="output"></div>
+
+    <script>
+      const dropZone = document.getElementById("drop-zone");
+      const fileInput = document.getElementById("fileInput");
+      const output = document.getElementById("output");
+
+      dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.style.background = "#e0f0ff";
+      });
+
+      dropZone.addEventListener("dragleave", (e) => {
+        dropZone.style.background = "#f9f9f9";
+      });
+
+      dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.style.background = "#f9f9f9";
+        const file = e.dataTransfer.files[0];
+        if (file) subirImagen(file.name);
+      });
+
+      fileInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (file) subirImagen(file.name);
+      });
+
+      function subirImagen(fileName) {
+        console.log("Subiendo imagen:", fileName);
+        return fetch(
+          `http://localhost:8080/ChordSimpleImplementation/nodo/alta`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: fileName,
+          }
+        )
+          .then((res) => res.text())
+          .then((text) => {
+            output.textContent = `Resultado de la subida: ${text}`;
+          })
+          .catch((err) => {
+            output.textContent = `Error al subir: ${err.message}`;
+          });
+      }
+
+      function getRecursos() {
+        fetch(
+          `http://localhost:8080/ChordSimpleImplementation/nodo/recursosLocales`
+        )
+          .then((res) => res.json())
+          .then((data) => {
+            for (const key in data) {
+              if (data[key].image) data[key].image = "";
+            }
+            output.textContent = JSON.stringify(data, null, 2);
+          });
+      }
+
+      function baja() {
+        const nombre = document.getElementById("nombreRecurso").value;
+        fetch(
+          `http://localhost:8080/ChordSimpleImplementation/nodo/baja/${nombre}`,
+          {
+            method: "DELETE",
+          }
+        )
+          .then((res) => res.text())
+          .then((text) => (output.textContent = text));
+      }
+
+      function descarga() {
+        const nombre = document.getElementById("nombreRecurso").value;
+
+        fetch(
+          `http://localhost:8080/ChordSimpleImplementation/nodo/descarga?nombreRecurso=${nombre}`
+        )
+          .then((res) => {
+            if (!res.ok) {
+              throw new Error(
+                `Error al descargar: ${res.status} ${res.statusText}`
+              );
+            }
+            return res.blob();
+          })
+          .then((blob) => {
+            if (blob.size === 0) {
+              throw new Error("El recurso no existe o está vacío.");
+            }
+
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = nombre;
+            a.click();
+            output.textContent = "Archivo descargado.";
+          })
+          .catch((err) => {
+            output.textContent = `Error al descargar archivo: ${err.message}`;
+          });
+      }
+
+      function eliminarNodo() {
+        fetch(
+          `http://localhost:8080/ChordSimpleImplementation/nodo/eliminarNodo`,
+          {
+            method: "POST",
+          }
+        )
+          .then((res) => res.text())
+          .then((text) => (output.textContent = text))
+          .catch(() => (output.textContent = "Nodo eliminado"));
+      }
+
+      function verStatus() {
+        fetch(`http://localhost:8080/ChordSimpleImplementation/nodo/status`)
+          .then((res) => res.text())
+          .then((text) => (output.textContent = text));
+      }
+    </script>
+  </body>
+</html>

@@ -275,7 +275,6 @@ public class Peer {
 	
 	@DELETE
 	@Path("baja/{nombreRecurso}")
-	@Consumes(MediaType.TEXT_PLAIN)
 	public String baja(@PathParam("nombreRecurso") String nombreRecurso) {
 
 		boolean removed = recursosLocales.removeIf((rec -> rec.name.equals(nombreRecurso)));
